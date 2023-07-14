@@ -6,9 +6,16 @@ import { Switch, TextField, Typography, Accordion, AccordionSummary, AccordionDe
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
 import YAML from 'yaml';
 
+interface FormField {
+  name: string;
+  type: string;
+  label: string;
+  value: string | boolean | string[] | FormField[];
+}
+
 const Home = () => {
   const [yamlText, setYamlText] = useState('');
-  const [formFields, setFormFields] = useState([]);
+  const [formFields, setFormFields] = useState<FormField[]>([]);
 
   const generateFormFields = () => {
     try {
@@ -20,34 +27,34 @@ const Home = () => {
     }
   };
 
-  const createFormFields = (data, prefix = '') => {
-    const fields = [];
-  
-    const handleField = (key, value) => {
+  const createFormFields = (data: any, prefix = ''): FormField[] => {
+    const fields: FormField[] = [];
+
+    const handleField = (key: string, value: any) => {
       const fieldName = prefix + key;
       const fieldType = getFieldType(value);
       const fieldLabel = capitalize(key.replace(/_/g, ' '));
       const fieldValue = fieldType === 'switch' ? value === 'true' : value;
       fields.push({ name: fieldName, type: fieldType, label: fieldLabel, value: fieldValue });
     };
-  
-    const processObject = (obj, prefix) => {
+
+    const processObject = (obj: any, prefix: string) => {
       for (const key in obj) {
         if (typeof obj[key] === 'object') {
           const accordionTitle = capitalize(key.replace(/_/g, ' '));
-          fields.push({ name: prefix + key, type: 'accordion', label: accordionTitle, value: obj[key] });
+          fields.push({ name: prefix + key, type: 'accordion', label: accordionTitle, value: createFormFields(obj[key], `${prefix}${key}.`) });
         } else {
           handleField(`${prefix}${key}`, obj[key]);
         }
       }
     };
-  
+
     processObject(data, '');
-  
+
     return fields;
   };
 
-  const getFieldType = (value) => {
+  const getFieldType = (value: any): string => {
     if (typeof value === 'boolean') {
       return 'switch';
     } else if (Array.isArray(value)) {
@@ -60,17 +67,17 @@ const Home = () => {
       return 'text';
     }
   };
-  
 
-  const capitalize = (str) => {
+
+  const capitalize = (str: string): string => {
     return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
-  const handleYamlInputChange = (event) => {
+  const handleYamlInputChange = (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     setYamlText(event.target.value);
   };
 
-  const renderFormField = (field) => {
+  const renderFormField = (field: FormField) => {
     switch (field.type) {
       case 'text':
         return (
@@ -80,7 +87,7 @@ const Home = () => {
             label={field.label}
             fullWidth
             variant="outlined"
-            defaultValue={field.value}
+            defaultValue={field.value as string}
             style={{ marginBottom: '1rem' }}
             InputLabelProps={{ shrink: true }}
           />
@@ -90,7 +97,7 @@ const Home = () => {
           <div key={field.name} style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
             <Typography>{field.label}</Typography>
             <Switch
-              defaultChecked={field.value === 'true' ? true : false}
+              checked={field.value as boolean}
               color="primary"
               inputProps={{ 'aria-label': field.label }}
             />
@@ -100,7 +107,7 @@ const Home = () => {
         return (
           <div key={field.name} style={{ marginBottom: '1rem' }}>
             <Typography>{field.label}</Typography>
-            {field.value.map((tag, index) => (
+            {(field.value as string[]).map((tag, index) => (
               <Typography key={index} variant="body2" style={{ marginLeft: '1rem' }}>
                 {tag}
               </Typography>
@@ -116,7 +123,7 @@ const Home = () => {
             fullWidth
             variant="outlined"
             type="number"
-            defaultValue={field.value}
+            defaultValue={field.value as string}
             style={{ marginBottom: '1rem' }}
             InputLabelProps={{ shrink: true }}
           />
@@ -130,26 +137,26 @@ const Home = () => {
             fullWidth
             variant="outlined"
             type="email"
-            defaultValue={field.value}
+            defaultValue={field.value as string}
             style={{ marginBottom: '1rem' }}
             InputLabelProps={{ shrink: true }}
           />
         );
-        case 'accordion':
-          return (
-            <Accordion key={field.name} style={{ marginBottom: '1rem' }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />} style={{ fontWeight: 'bold' }}>
-                {field.label}
-              </AccordionSummary>
-              <AccordionDetails>
-                <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  {createFormFields(field.value, field.name + '.').map((nestedField, index) => (
-                    <React.Fragment key={index}>{renderFormField(nestedField)}</React.Fragment>
-                  ))}
-                </div>
-              </AccordionDetails>
-            </Accordion>
-          );        
+      case 'accordion':
+        return (
+          <Accordion key={field.name} style={{ marginBottom: '1rem' }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} style={{ fontWeight: 'bold' }}>
+              {field.label}
+            </AccordionSummary>
+            <AccordionDetails>
+              <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                {(field.value as FormField[]).map((nestedField, index) => (
+                  <React.Fragment key={index}>{renderFormField(nestedField)}</React.Fragment>
+                ))}
+              </div>
+            </AccordionDetails>
+          </Accordion>
+        );
       default:
         return null;
     }
